@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AnOnTché - Ruban Rose Bénin</title>
+    <meta name="description" content="Application béninoise de sensibilisation au dépistage du cancer du sein, guide interactif d'auto-examen mammaire, calcul de cycle et annuaire des centres médicaux au Bénin." />
+    <meta property="og:title" content="AnOnTché - Ruban Rose Bénin" />
+    <meta property="og:description" content="Application béninoise de sensibilisation au dépistage du cancer du sein, guide interactif d'auto-examen mammaire, calcul de cycle et annuaire des centres médicaux au Bénin." />
+    <meta property="og:type" content="website" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+    <script>
+      // Invalider les anciens caches pour forcer la mise à jour sur les navigateurs mobiles
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          names.forEach(function(name) {
+            if (name !== 'anontche-v5') {
+              caches.delete(name);
+            }
+          });
+        });
+      }
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          registrations.forEach(function(registration) {
+            registration.update();
+          });
+        });
+      }
+    </script>
+  </head>
+  <body class="bg-[#f9f9ff] text-[#111c2d] font-['Plus_Jakarta_Sans',sans-serif] antialiased selection:bg-[#ffd9e0] selection:text-[#3f0019]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

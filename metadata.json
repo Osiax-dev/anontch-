@@ -1,0 +1,7 @@
+{
+  "name": "AnOnTché - Ruban Rose Bénin",
+  "description": "Application béninoise de sensibilisation au dépistage du cancer du sein, guide interactif d'auto-examen mammaire, calcul de cycle et annuaire des centres médicaux au Bénin.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
