@@ -1,11 +1,12 @@
 import React from 'react';
+import { Heart, Lock, RotateCcw } from 'lucide-react';
 import { NavigationTab, UserProfile } from '../types';
-import { ShieldCheck, Heart, User, CheckCircle2, Lock, RotateCcw } from 'lucide-react';
 import { AnOnTcheText } from './BreastOIcon';
 
 interface HeaderProps {
   currentTab: NavigationTab;
   onSelectTab: (tab: NavigationTab) => void;
+  /** Non utilisé pour l'instant : conservé pour ne pas casser les appels existants. */
   brandVariant?: 'anontche' | 'rubanrose';
   userProfile: UserProfile | null;
   onOpenAuthModal: () => void;
@@ -13,247 +14,392 @@ interface HeaderProps {
   onLockNow?: () => void;
 }
 
+/* ---------- Données ---------- */
+
+const NAV_ITEMS: { tab: NavigationTab; label: string }[] = [
+  { tab: 'accueil', label: 'Accueil' },
+  { tab: 'guide', label: 'Guide Palpation' },
+  { tab: 'risques', label: 'Facteurs de Risque' },
+  { tab: 'jeu', label: 'Jeu' },
+  { tab: 'centres', label: 'Centres Bénin' },
+  { tab: 'suivi', label: 'Mon Suivi' },
+];
+
+/* ---------- Actions ---------- */
+
+/** Vide les caches et les service workers, puis recharge la page. */
+async function hardRefresh(): Promise<void> {
+  try {
+    if ('caches' in window) {
+      const names = await caches.keys();
+      await Promise.all(names.map((name) => caches.delete(name)));
+    }
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((r) => r.unregister()));
+    }
+  } catch {
+    /* on recharge quand même */
+  }
+  window.location.reload();
+}
+
+/* ---------- Sous-composants ---------- */
+
+const RefreshBar: React.FC = () => (
+  <div className="hdr__refresh-bar">
+    <button
+      type="button"
+      className="hdr__refresh"
+      onClick={hardRefresh}
+      title="Actualiser pour charger immédiatement la toute dernière version sur votre téléphone"
+    >
+      <RotateCcw />
+      <span>Actualiser</span>
+    </button>
+  </div>
+);
+
+const Brand: React.FC<{ onClick: () => void }> = ({ onClick }) => (
+  <button type="button" className="hdr__brand" onClick={onClick}>
+    <span className="hdr__logo" aria-hidden="true">
+      <Heart />
+    </span>
+    <span>
+      <span className="hdr__name">
+        <AnOnTcheText iconClassName="hdr__name-icon" />
+        <span className="hdr__country">BÉNIN</span>
+      </span>
+      <span className="hdr__tagline">Santé du sein &amp; Prévention active</span>
+    </span>
+  </button>
+);
+
+interface NavItemsProps {
+  currentTab: NavigationTab;
+  onSelectTab: (tab: NavigationTab) => void;
+  variant: 'desktop' | 'mobile';
+}
+
+const NavItems: React.FC<NavItemsProps> = ({ currentTab, onSelectTab, variant }) => (
+  <>
+    {NAV_ITEMS.map(({ tab, label }) => {
+      const active = currentTab === tab;
+      return (
+        <button
+          key={tab}
+          type="button"
+          className={`hdr__tab hdr__tab--${variant}${active ? ' is-active' : ''}`}
+          aria-current={active ? 'page' : undefined}
+          onClick={() => onSelectTab(tab)}
+        >
+          {label}
+        </button>
+      );
+    })}
+  </>
+);
+
+interface UserAreaProps {
+  userProfile: UserProfile | null;
+  onOpenAuthModal: () => void;
+  onOpenProfileModal: () => void;
+  onLockNow?: () => void;
+}
+
+const UserArea: React.FC<UserAreaProps> = ({ userProfile, onOpenAuthModal, onOpenProfileModal, onLockNow }) => {
+  if (!userProfile?.isAuthenticated) {
+    return (
+      <button type="button" className="hdr__pill hdr__pill--private" onClick={onOpenAuthModal}>
+        <Lock />
+        <span>Mon Espace Privé</span>
+      </button>
+    );
+  }
+
+  if (userProfile.isLocked) {
+    return (
+      <button
+        type="button"
+        className="hdr__pill hdr__pill--locked"
+        onClick={onOpenAuthModal}
+        title="Espace intime verrouillé - Cliquez pour saisir votre code PIN"
+      >
+        <Lock />
+        <span>Verrouillé (PIN)</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="hdr__user">
+      {onLockNow && (
+        <button
+          type="button"
+          className="hdr__pill hdr__pill--discreet"
+          onClick={onLockNow}
+          title="Verrouillage Express : Masquer immédiatement mes données intimes en 1 clic"
+        >
+          <Lock />
+          <span className="hdr__hide-sm">Discrétion</span>
+        </button>
+      )}
+      <button
+        type="button"
+        className="hdr__profile"
+        onClick={onOpenProfileModal}
+        title="Gérer mon espace personnel"
+      >
+        <span className="hdr__avatar">{userProfile.name.charAt(0).toUpperCase()}</span>
+        <span className="hdr__username hdr__hide-sm">{userProfile.name}</span>
+      </button>
+    </div>
+  );
+};
+
+/* ---------- Styles ---------- */
+
+const HEADER_CSS = `
+/* Header : styles du composant. Les couleurs sont regroupées ici, en variables. */
+.hdr {
+  --hdr-ink: #111c2d;
+  --hdr-muted: #574145;
+  --hdr-primary: #cd3e6e;
+  --hdr-primary-dark: #ac2356;
+  --hdr-surface: #f0f3ff;
+  --hdr-line: #e7eeff;
+  --hdr-line-strong: #dee8ff;
+  --hdr-teal: #006a61;
+  --hdr-teal-bg: #e6fffa;
+  --hdr-pink-bg: #ffd9e0;
+  --hdr-pink-bg-hover: #ffb1c2;
+  --hdr-pink-ink: #8f0341;
+  --hdr-danger: #dc2626;
+  --hdr-danger-ink: #991b1b;
+  --hdr-danger-bg: #fee2e2;
+  --hdr-danger-bg-hover: #fecaca;
+  --hdr-danger-line: #fca5a5;
+  --hdr-ok-bg: #f0fdf4;
+  --hdr-ok-line: #dcfce7;
+  --hdr-ok-ink: #166534;
+  --hdr-refresh-ink: #065f46;
+  --hdr-refresh-line: #6ee7b7;
+  --hdr-refresh-hover: #d1fae5;
+
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgb(255 255 255 / 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--hdr-line);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+}
+
+.hdr button { font: inherit; cursor: pointer; }
+.hdr button:focus-visible { outline: 2px solid var(--hdr-primary); outline-offset: 2px; }
+.hdr svg { flex-shrink: 0; }
+
+/* --- Bandeau « Actualiser » --- */
+.hdr__refresh-bar {
+  display: flex;
+  align-items: center;
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 0.25rem 1rem;
+  background: var(--hdr-ok-bg);
+  border-bottom: 1px solid var(--hdr-ok-line);
+  color: var(--hdr-ok-ink);
+}
+.hdr__refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.625rem;
+  background: #fff;
+  color: var(--hdr-refresh-ink);
+  border: 1px solid var(--hdr-refresh-line);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  transition: background 0.2s;
+}
+.hdr__refresh:hover { background: var(--hdr-refresh-hover); }
+.hdr__refresh svg { width: 0.875rem; height: 0.875rem; }
+
+/* --- Zone principale --- */
+.hdr__main { max-width: 80rem; margin: 0 auto; padding: 0 1rem; }
+.hdr__row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; height: 4.5rem; }
+
+/* --- Marque --- */
+.hdr__brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+}
+.hdr__logo {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  color: #fff;
+  background: linear-gradient(to top right, var(--hdr-primary-dark), var(--hdr-primary));
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgb(172 35 86 / 0.2);
+  transition: transform 0.2s;
+}
+.hdr__brand:hover .hdr__logo { transform: scale(1.05); }
+.hdr__logo svg { width: 1.25rem; height: 1.25rem; fill: rgb(255 255 255 / 0.8); }
+.hdr__name {
+  display: flex;
+  align-items: center;
+  color: var(--hdr-ink);
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+.hdr__name-icon { width: 0.95em; height: 0.95em; margin: 0 0.5px; color: var(--hdr-primary-dark); }
+.hdr__country {
+  margin-left: 0.375rem;
+  padding: 0.125rem 0.375rem;
+  color: var(--hdr-teal);
+  background: var(--hdr-teal-bg);
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+.hdr__tagline { display: none; color: var(--hdr-muted); font-size: 0.875rem; font-weight: 500; }
+
+/* --- Navigation --- */
+.hdr__nav { align-items: center; gap: 0.25rem; }
+.hdr__nav--desktop { display: none; }
+.hdr__nav--mobile { display: flex; overflow-x: auto; padding: 0.25rem 0 0.5rem; scrollbar-width: none; }
+.hdr__nav--mobile::-webkit-scrollbar { display: none; }
+
+.hdr__tab {
+  border: 0;
+  border-radius: 999px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+}
+.hdr__tab--desktop { padding: 0.5rem 1rem; background: transparent; color: var(--hdr-muted); font-size: 0.95rem; }
+.hdr__tab--desktop:hover { background: var(--hdr-surface); color: var(--hdr-ink); }
+.hdr__tab--mobile { padding: 0.375rem 0.75rem; background: var(--hdr-surface); color: var(--hdr-muted); font-size: 0.875rem; }
+.hdr__tab.is-active { background: var(--hdr-primary); color: #fff; }
+.hdr__tab--desktop.is-active { box-shadow: 0 1px 2px rgb(0 0 0 / 0.1); }
+
+/* --- Espace utilisateur --- */
+.hdr__user { display: flex; align-items: center; gap: 0.375rem; }
+.hdr__pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.875rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  transition: background 0.2s, color 0.2s;
+}
+.hdr__pill svg { width: 0.875rem; height: 0.875rem; }
+.hdr__pill--private { background: var(--hdr-pink-bg); color: var(--hdr-pink-ink); }
+.hdr__pill--private:hover { background: var(--hdr-pink-bg-hover); }
+.hdr__pill--locked {
+  background: var(--hdr-danger-bg);
+  color: var(--hdr-danger-ink);
+  border-color: var(--hdr-danger-line);
+  animation: hdr-pulse 2s ease-in-out infinite;
+}
+.hdr__pill--locked:hover { background: var(--hdr-danger-bg-hover); }
+.hdr__pill--locked svg { color: var(--hdr-danger); }
+.hdr__pill--discreet { background: var(--hdr-surface); color: var(--hdr-primary-dark); border-color: var(--hdr-line-strong); }
+.hdr__pill--discreet:hover { background: var(--hdr-danger-bg); color: var(--hdr-danger-ink); }
+
+.hdr__profile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--hdr-surface);
+  color: var(--hdr-ink);
+  border: 1px solid var(--hdr-line-strong);
+  border-radius: 999px;
+  transition: background 0.2s;
+}
+.hdr__profile:hover { background: var(--hdr-pink-bg); }
+.hdr__avatar {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  background: var(--hdr-primary-dark);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+.hdr__username { max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.875rem; font-weight: 700; }
+
+.hdr__hide-sm { display: none; }
+
+@keyframes hdr-pulse { 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { .hdr__pill--locked { animation: none; } }
+
+/* --- ≥ 640px --- */
+@media (min-width: 640px) {
+  .hdr__refresh-bar, .hdr__main { padding-inline: 1.5rem; }
+  .hdr__tagline { display: block; }
+  .hdr__hide-sm { display: inline; }
+}
+/* --- ≥ 768px --- */
+@media (min-width: 768px) {
+  .hdr__nav--desktop { display: flex; }
+  .hdr__nav--mobile { display: none; }
+}
+/* --- ≥ 1024px --- */
+@media (min-width: 1024px) {
+  .hdr__refresh-bar, .hdr__main { padding-inline: 2rem; }
+}
+`;
+
+/* ---------- Composant principal ---------- */
+
 export const Header: React.FC<HeaderProps> = ({
   currentTab,
   onSelectTab,
-  brandVariant = 'anontche',
   userProfile,
   onOpenAuthModal,
   onOpenProfileModal,
   onLockNow,
-}) => {
-  const handleHardRefresh = () => {
-    try {
-      if ('caches' in window) {
-        caches.keys().then((names) => {
-          names.forEach((name) => caches.delete(name));
-        });
-      }
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then((registrations) => {
-          registrations.forEach((r) => r.unregister());
-        });
-      }
-    } catch (e) {}
-    // Force reload bypassing cache
-    window.location.reload();
-  };
+}) => (
+  <header className="hdr">
+    <style>{HEADER_CSS}</style>
+    <RefreshBar />
 
-  return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-[#e7eeff] shadow-sm">
-      {/* Top micro banner for version status & instant cache bypass */}
-      <div className="bg-[#f0fdf4] border-b border-[#dcfce7] py-1 px-4 text-xs text-[#166534] flex items-center justify-between gap-2 max-w-7xl mx-auto">
-        <div className="flex items-center gap-2">
-          <span className="inline-block w-2 h-2 rounded-full bg-[#16a34a] animate-pulse"></span>
-          <span className="font-semibold text-[11px] sm:text-xs">Version 5 Niveaux active • Données sécurisées</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleHardRefresh}
-            title="Actualiser pour charger immédiatement la toute dernière version sur votre téléphone"
-            className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-[11px] font-bold cursor-pointer transition-all shadow-2xs"
-          >
-            <RotateCcw className="w-3 h-3" />
-            <span>Actualiser</span>
-          </button>
-        </div>
+    <div className="hdr__main">
+      <div className="hdr__row">
+        <Brand onClick={() => onSelectTab('accueil')} />
+
+        <nav className="hdr__nav hdr__nav--desktop" aria-label="Navigation principale">
+          <NavItems currentTab={currentTab} onSelectTab={onSelectTab} variant="desktop" />
+        </nav>
+
+        <UserArea
+          userProfile={userProfile}
+          onOpenAuthModal={onOpenAuthModal}
+          onOpenProfileModal={onOpenProfileModal}
+          onLockNow={onLockNow}
+        />
       </div>
 
-      {/* Main navigation bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-18">
-          {/* Brand Logo & Name */}
-          <button
-            onClick={() => onSelectTab('accueil')}
-            className="flex items-center gap-3 text-left focus:outline-none group cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#ac2356] to-[#cd3e6e] flex items-center justify-center text-white shadow-md shadow-[#ac2356]/20 group-hover:scale-105 transition-transform">
-              <Heart className="w-5 h-5 fill-white/80" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xl tracking-tight text-[#111c2d] flex items-center">
-                  <AnOnTcheText iconClassName="w-[0.95em] h-[0.95em] mx-[0.5px] text-[#ac2356]" />
-                  <span className="text-[#006a61] bg-[#e6fffa] px-1.5 py-0.5 rounded text-xs font-bold ml-1.5">BÉNIN</span>
-                </span>
-              </div>
-              <p className="text-xs text-[#574145] font-medium hidden sm:block">
-                Santé du sein & Prévention active
-              </p>
-            </div>
-          </button>
-
-          {/* Desktop Nav Items */}
-          <nav className="hidden md:flex items-center gap-1">
-            <button
-              onClick={() => onSelectTab('accueil')}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${
-                currentTab === 'accueil'
-                  ? 'bg-[#cd3e6e] text-white shadow-sm'
-                  : 'text-[#574145] hover:text-[#111c2d] hover:bg-[#f0f3ff]'
-              }`}
-            >
-              Accueil
-            </button>
-            <button
-              onClick={() => onSelectTab('guide')}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${
-                currentTab === 'guide'
-                  ? 'bg-[#cd3e6e] text-white shadow-sm'
-                  : 'text-[#574145] hover:text-[#111c2d] hover:bg-[#f0f3ff]'
-              }`}
-            >
-              Guide Palpation
-            </button>
-            <button
-              onClick={() => onSelectTab('risques')}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${
-                currentTab === 'risques'
-                  ? 'bg-[#cd3e6e] text-white shadow-sm'
-                  : 'text-[#574145] hover:text-[#111c2d] hover:bg-[#f0f3ff]'
-              }`}
-            >
-              Facteurs de Risque
-            </button>
-            <button
-              onClick={() => onSelectTab('jeu')}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${
-                currentTab === 'jeu'
-                  ? 'bg-[#cd3e6e] text-white shadow-sm'
-                  : 'text-[#574145] hover:text-[#111c2d] hover:bg-[#f0f3ff]'
-              }`}
-            >
-              Jeu
-            </button>
-            <button
-              onClick={() => onSelectTab('centres')}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${
-                currentTab === 'centres'
-                  ? 'bg-[#cd3e6e] text-white shadow-sm'
-                  : 'text-[#574145] hover:text-[#111c2d] hover:bg-[#f0f3ff]'
-              }`}
-            >
-              Centres Bénin
-            </button>
-            <button
-              onClick={() => onSelectTab('suivi')}
-              className={`px-4 py-2 rounded-full text-sm font-semibold transition-all cursor-pointer ${
-                currentTab === 'suivi'
-                  ? 'bg-[#cd3e6e] text-white shadow-sm'
-                  : 'text-[#574145] hover:text-[#111c2d] hover:bg-[#f0f3ff]'
-              }`}
-            >
-              Mon Suivi
-            </button>
-          </nav>
-
-          {/* Right Status & Profile */}
-          <div className="flex items-center gap-2">
-            <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f0fdf4] text-[#15803d] text-xs font-semibold border border-[#dcfce7]">
-              <span className="w-2 h-2 rounded-full bg-[#16a34a]"></span>
-              <span>PWA • Prêt hors-ligne</span>
-            </div>
-
-            {userProfile?.isAuthenticated ? (
-              userProfile.isLocked ? (
-                <button
-                  onClick={onOpenAuthModal}
-                  title="Espace intime verrouillé - Cliquez pour saisir votre code PIN"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#fee2e2] hover:bg-[#fecaca] text-[#991b1b] border border-[#fca5a5] text-xs font-bold transition-all cursor-pointer animate-pulse"
-                >
-                  <Lock className="w-3.5 h-3.5 text-[#dc2626]" />
-                  <span>Verrouillé (PIN)</span>
-                </button>
-              ) : (
-                <div className="flex items-center gap-1.5">
-                  {onLockNow && (
-                    <button
-                      onClick={onLockNow}
-                      title="Verrouillage Express : Masquer immédiatement mes données intimes en 1 clic"
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-[#f0f3ff] hover:bg-[#fee2e2] text-[#ac2356] hover:text-[#991b1b] border border-[#dee8ff] text-xs font-bold transition-all cursor-pointer"
-                    >
-                      <Lock className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Discrétion</span>
-                    </button>
-                  )}
-                  <button
-                    onClick={onOpenProfileModal}
-                    title="Gérer mon espace personnel"
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#f0f3ff] hover:bg-[#ffd9e0] text-[#111c2d] border border-[#dee8ff] transition-all cursor-pointer"
-                  >
-                    <div className="w-6 h-6 rounded-full bg-[#ac2356] text-white flex items-center justify-center text-xs font-bold">
-                      {userProfile.name.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-xs font-bold max-w-[90px] truncate hidden sm:inline">
-                      {userProfile.name}
-                    </span>
-                  </button>
-                </div>
-              )
-            ) : (
-              <button
-                onClick={onOpenAuthModal}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#ffd9e0] hover:bg-[#ffb1c2] text-[#8f0341] text-xs font-bold transition-all cursor-pointer shadow-xs"
-              >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Mon Espace Privé</span>
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Mobile secondary navigation scroller */}
-        <div className="md:hidden flex items-center gap-1 overflow-x-auto pb-2 scrollbar-none pt-1">
-          <button
-            onClick={() => onSelectTab('accueil')}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer ${
-              currentTab === 'accueil' ? 'bg-[#cd3e6e] text-white' : 'bg-[#f0f3ff] text-[#574145]'
-            }`}
-          >
-            Accueil
-          </button>
-          <button
-            onClick={() => onSelectTab('guide')}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer ${
-              currentTab === 'guide' ? 'bg-[#cd3e6e] text-white' : 'bg-[#f0f3ff] text-[#574145]'
-            }`}
-          >
-            Guide Palpation
-          </button>
-          <button
-            onClick={() => onSelectTab('risques')}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer ${
-              currentTab === 'risques' ? 'bg-[#cd3e6e] text-white' : 'bg-[#f0f3ff] text-[#574145]'
-            }`}
-          >
-            Facteurs de Risque
-          </button>
-          <button
-            onClick={() => onSelectTab('jeu')}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer ${
-              currentTab === 'jeu' ? 'bg-[#cd3e6e] text-white' : 'bg-[#f0f3ff] text-[#574145]'
-            }`}
-          >
-            Jeu
-          </button>
-          <button
-            onClick={() => onSelectTab('centres')}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer ${
-              currentTab === 'centres' ? 'bg-[#cd3e6e] text-white' : 'bg-[#f0f3ff] text-[#574145]'
-            }`}
-          >
-            Centres Bénin
-          </button>
-          <button
-            onClick={() => onSelectTab('suivi')}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap cursor-pointer ${
-              currentTab === 'suivi' ? 'bg-[#cd3e6e] text-white' : 'bg-[#f0f3ff] text-[#574145]'
-            }`}
-          >
-            Mon Suivi
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-};
+      <nav className="hdr__nav hdr__nav--mobile" aria-label="Navigation mobile">
+        <NavItems currentTab={currentTab} onSelectTab={onSelectTab} variant="mobile" />
+      </nav>
+    </div>
+  </header>
+);
